@@ -1,7 +1,6 @@
 import streamlit as st
 import sqlite3
 import os
-import hashlib
 from datetime import datetime
 import fitz
 from PIL import Image
@@ -21,32 +20,29 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 conn = sqlite3.connect("portal.db", check_same_thread=False)
 c = conn.cursor()
 
-c.execute("""CREATE TABLE IF NOT EXISTS files (
+c.execute("""
+CREATE TABLE IF NOT EXISTS files (
     filename TEXT,
     month TEXT,
     uploaded_by TEXT
-)""")
+)
+""")
 
-c.execute("""CREATE TABLE IF NOT EXISTS audit (
+c.execute("""
+CREATE TABLE IF NOT EXISTS audit (
     action TEXT,
     filename TEXT,
     time TEXT
-)""")
+)
+""")
 
 conn.commit()
 
 # -------------------------
-# SECURITY (HIDDEN ADMIN)
+# MONTH FUNCTION
 # -------------------------
-ADMIN_KEY = "ALAYA2026"
-ADMIN_HASH = hashlib.sha256(ADMIN_KEY.encode()).hexdigest()
-
-key = st.query_params.get("admin_key", "")
-
-def is_admin(k):
-    return hashlib.sha256(k.encode()).hexdigest() == ADMIN_HASH
-
-admin_mode = is_admin(key)
+def get_month():
+    return datetime.now().strftime("%B")
 
 # -------------------------
 # HEADER
@@ -66,7 +62,7 @@ Alayadivembu M.P.C.S Ltd
 """, unsafe_allow_html=True)
 
 # -------------------------
-# ADVANCED PDF VIEWER
+# PDF VIEWER (FIXED)
 # -------------------------
 def pdf_viewer(file_path):
 
@@ -102,43 +98,60 @@ def pdf_viewer(file_path):
     st.image(img, use_container_width=True)
 
 # -------------------------
-# ADMIN PANEL (HIDDEN)
+# UPLOAD SECTION (FIXED)
 # -------------------------
-if admin_mode:
+st.subheader("📤 Upload PDF")
 
-    st.success("🔐 ADMIN MODE ACTIVE")
+file = st.file_uploader("Choose PDF", type=["pdf"])
 
-    st.header("📤 Upload Documents")
+if file:
 
-    file = st.file_uploader("Upload PDF", type=["pdf"])
+    file_path = os.path.join(UPLOAD_FOLDER, file.name)
 
-    if file:
+    with open(file_path, "wb") as f:
+        f.write(file.getbuffer())
 
-        path = os.path.join(UPLOAD_FOLDER, file.name)
+    month = get_month()
 
-        with open(path, "wb") as f:
-            f.write(file.getbuffer())
+    c.execute(
+        "INSERT INTO files VALUES (?,?,?)",
+        (file.name, month, "ADMIN")
+    )
 
-        c.execute("INSERT INTO files VALUES (?,?,?)",
-                  (file.name, "ADMIN", "ADMIN"))
+    c.execute(
+        "INSERT INTO audit VALUES (?,?,?)",
+        ("UPLOAD", file.name, str(datetime.now()))
+    )
 
-        c.execute("INSERT INTO audit VALUES (?,?,?)",
-                  ("UPLOAD", file.name, str(datetime.now())))
+    conn.commit()
 
-        conn.commit()
-
-        st.success("Uploaded Successfully ✅")
+    st.success("Uploaded Successfully ✅")
 
 # -------------------------
-# PUBLIC VIEW
+# MONTH FILTER
 # -------------------------
 st.subheader("📂 Documents")
 
-c.execute("SELECT * FROM files")
+months = ["All","January","February","March","April","May","June",
+          "July","August","September","October","November","December"]
+
+selected_month = st.selectbox("📅 Select Month", months)
+
+# -------------------------
+# FETCH DATA (FIXED)
+# -------------------------
+if selected_month == "All":
+    c.execute("SELECT * FROM files")
+else:
+    c.execute("SELECT * FROM files WHERE month=?", (selected_month,))
+
 files = c.fetchall()
 
-if not files:
-    st.info("No documents available")
+# -------------------------
+# DISPLAY FILES
+# -------------------------
+if len(files) == 0:
+    st.info("📭 No documents available")
 else:
 
     for fdata in files:
@@ -148,7 +161,7 @@ else:
         col1, col2 = st.columns([4,1])
 
         with col1:
-            st.write("📄", fdata[0])
+            st.write(f"📄 {fdata[0]}  |  📅 {fdata[1]}")
 
         with col2:
 
@@ -160,13 +173,16 @@ else:
                 st.session_state["pdf"] = file_path
 
 # -------------------------
-# PDF VIEW SECTION
+# PDF PREVIEW SECTION (FIXED)
 # -------------------------
 if "pdf" in st.session_state:
-    st.markdown("---")
-    st.subheader("📄 Advanced PDF Viewer")
 
-    pdf_viewer(st.session_state["pdf"])
+    if os.path.exists(st.session_state["pdf"]):
+
+        st.markdown("---")
+        st.subheader("📄 PDF Viewer")
+
+        pdf_viewer(st.session_state["pdf"])
 
 # -------------------------
 # FOOTER
