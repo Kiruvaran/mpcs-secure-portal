@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Alayadivembu M.P.C.S Ltd - Payroll System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- FIREBASE SDK LIBRARIES -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f4f4; margin: 0; }
+        .main-header { text-align: center; color: #2c3e50; margin-bottom: 20px; }
+        .tabs { margin-bottom: 20px; text-align: center; }
+        .tab-btn { padding: 12px 25px; cursor: pointer; color: white; border: none; margin: 5px; border-radius: 5px; font-weight: bold; transition: 0.3s; }
+        .btn-dash { background-color: #3498db; }
+        .btn-perm { background-color: #27ae60; }
+        .btn-temp { background-color: #e67e22; }
+        .btn-repo { background-color: #9b59b6; }
+        .tab-btn:hover { opacity: 0.8; transform: translateY(-2px); }
+        .section { background: white; padding: 20px; border: 1px solid #ddd; display: none; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .active { display: block; }
+        #dashboard { border-top: 5px solid #3498db; }
+        #permanent { border-top: 5px solid #27ae60; }
+        #temporary { border-top: 5px solid #e67e22; }
+        #report { border-top: 5px solid #9b59b6; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; background: #fff; }
+        th, td { border: 1px solid #000; padding: 8px; text-align: center; }
+        th { background-color: #333; color: white; }
+        
+        /* Alignments */
+        .text-left { text-align: left !important; padding-left: 10px; }
+        .text-right { text-align: right !important; padding-right: 10px; }
+        
+        .print-btn { background-color: #2980b9; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-top: 15px; font-size: 14px; }
+        .save-btn { background-color: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-top: 15px; font-size: 14px; margin-right: 10px; }
+        .action-btn { padding: 4px 8px; margin: 2px; cursor: pointer; border: none; border-radius: 3px; color: white; }
+        .edit-btn { background-color: #f39c12; }
+        .del-btn { background-color: #e74c3c; }
+        .view-btn { background-color: #2980b9; }
+        .inner-print-btn { background-color: #27ae60; padding: 6px 12px; font-size: 13px; border-radius: 4px; border: none; color: white; cursor: pointer; margin-top: 10px; }
+        
+        .print-only { display: none; text-align: center; font-weight: bold; font-size: 22px; margin-bottom: 15px; text-transform: uppercase; }
+        
+        /* Inputs */
+        .dash-input { padding: 6px 10px; font-size: 14px; border-radius: 4px; border: 1px solid #ccc; margin-right: 15px; font-family: inherit; background-color: #fff; color: #000; }
+        
+        /* Loading Text */
+        .loading-text { text-align: center; color: #7f8c8d; font-style: italic; padding: 10px; }
+
+        /* Computer Generated Document Note & Signature Layout */
+        .computer-generated-note { display: none; text-align: center; font-size: 14px; font-style: italic; margin-top: 40px; color: #555; }
+        .sig-container { display: none; justify-content: space-between; margin-top: 80px; padding: 0 50px; }
+        .sig-box { border-top: 1px solid #000; width: 150px; padding-top: 5px; font-weight: bold; text-align: center; color: #000; }
+        
+        /* Watermark */
+        #watermark { 
+            display: none; 
+            position: fixed; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            font-size: 24px; 
+            color: rgba(0, 0, 0, 0.3); 
+            white-space: nowrap; 
+            pointer-events: none; 
+            z-index: 9999; 
+            font-weight: bold; 
+            letter-spacing: 1px;
+        }
+        
+        /* Website Folder UI */
+        .folder-container { background: #fff; border: 2px solid #9b59b6; padding: 20px; margin-bottom: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
+        .folder-title { display: flex; justify-content: space-between; align-items: center; background: #9b59b6; color: white; padding: 12px; font-weight: bold; font-size: 18px; border-radius: 4px 4px 0 0; margin: -20px -20px 20px -20px; }
+        .report-page-block { background: #fff; border: 1px dashed #ccc; padding: 15px; margin-bottom: 20px; border-radius: 4px; position: relative; }
+
+        /* Legal Landscape Print Styles */
+        @media print {
+            @page { size: legal landscape; margin: 0.4in; }
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            .computer-generated-note { display: block !important; }
+            .sig-container { display: flex !important; }
+            #watermark { display: block !important; }
+            body { background-color: white; padding: 0; margin: 0; }
+            
+            .main-header, .tabs, .folder-title { display: none !important; }
+            .folder-container { border: none !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; background: transparent !important; }
+            .report-page-block { border: none !important; padding: 0 !important; margin: 0 !important; background: transparent !important; }
+            
+            .print-force-show { display: block !important; border: none !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; }
+            .print-force-hide { display: none !important; }
+
+            table { border: 1px solid #000 !important; font-size: 14px; width: 100% !important; page-break-inside: avoid; }
+            th { font-size: 15px; padding: 8px 4px; background-color: #333 !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            td { padding: 8px 4px; border: 1px solid #000 !important; }
+            
+            .perm-table td:nth-child(n+4):not(:last-child), .perm-table th:nth-child(n+4):not(:last-child) { text-align: right !important; padding-right: 8px; }
+            .temp-table td:nth-child(4), .temp-table th:nth-child(4), .temp-table td:nth-child(n+6):not(:last-child), .temp-table th:nth-child(n+6):not(:last-child) { text-align: right !important; padding-right: 8px; }
+            .dash-table td, .dash-table th { text-align: center !important; font-size: 16px; padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- WATERMARK -->
+    <div id="watermark">Developed by K.Kiruvaran</div>
+
+    <div class="main-header no-print">
+        <h1>Alayadivembu M.P.C.S Ltd</h1>
+        <hr style="width: 50%; border: 1px solid #ddd;">
+    </div>
+
+    <div class="tabs no-print">
+        <button class="tab-btn btn-dash" onclick="show('dashboard')">Dashboard</button>
+        <button class="tab-btn btn-perm" onclick="show('permanent')">Permanent</button>
+        <button class="tab-btn btn-temp" onclick="show('temporary')">Temporary</button>
+        <button class="tab-btn btn-repo" onclick="show('report')">Report</button>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="section active">
+        <div class="print-only">Alayadivembu M.P.C.S Ltd<br>Dashboard Summary - <span class="d-date"></span></div>
+        <h2 style="color: #3498db;">Dashboard Summary</h2>
+        
+        <div class="no-print" style="margin-bottom: 15px; font-weight: bold; color: #2c3e50;">
+            Month: 
+            <select id="m-val" class="dash-input">
+                <option value="">-- Select Month --</option>
+                <option value="January">January</option>
+                <option value="February">February</option>
+                <option value="March">March</option>
+                <option value="April">April</option>
+                <option value="May">May</option>
+                <option value="June">June</option>
+                <option value="July">July</option>
+                <option value="August">August</option>
+                <option value="September">September</option>
+                <option value="October">October</option>
+                <option value="November">November</option>
+                <option value="December">December</option>
+            </select>
+            Year: <input type="number" id="y-val" class="dash-input" value="2026" style="width: 80px;">
+        </div>
+
+        <table class="dash-table">
+            <thead>
+                <tr><th>Description</th><th>Amount</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Total EPF 8%</td><td id="dash-epf8">0.00</td></tr>
+                <tr><td>Total EPF 12%</td><td id="dash-epf12">0.00</td></tr>
+                <tr><td>Total EPF 20%</td><td id="dash-epf20">0.00</td></tr>
+                <tr><td>Total ETF 3%</td><td id="dash-etf3">0.00</td></tr>
+                <tr><td>Head Office Total Net Salary</td><td id="dash-ho">0.00</td></tr>
+                <tr><td>Fuel Filling Station Total Net Salary</td><td id="dash-fuel">0.00</td></tr>
+                <tr><td>Rural Bank Total Net Salary</td><td id="dash-rural">0.00</td></tr>
+            </tbody>
+        </table>
+        <button class="save-btn no-print" onclick="saveToReport()"><i class="fas fa-save"></i> Save Current Month Data (Online)</button>
+        <button class="print-btn no-print" onclick="printPage('dashboard')"><i class="fas fa-print"></i> Print Dashboard</button>
+        
+        <div class="computer-generated-note">This is a computer-generated document. No signature is required.</div>
+        <div class="sig-container"><div class="sig-box">Prepared by</div><div class="sig-box">Verified by</div><div class="sig-box">Accountant</div><div class="sig-box">General Manager</div></div>
+    </div>
+
+    <!-- PERMANENT -->
+    <div id="permanent" class="section">
+        <div class="print-only">Alayadivembu M.P.C.S Ltd<br>Permanent Employees Payroll - <span class="d-date"></span></div>
+        <h3 style="color: #27ae60;" class="no-print">Permanent Employees</h3>
+        <table id="perm-table" class="perm-table">
+            <thead>
+                <tr><th>Name</th><th>Dept</th><th>Designation</th><th>Basic</th><th>Inc</th><th>Gross</th><th>EPF 8%</th><th>EPF 12%</th><th>ETF 3%</th><th>Loan</th><th>Bond</th><th>Adv</th><th>Net</th><th class="no-print">Action</th></tr>
+            </thead>
+            <tbody>
+                <tr id="perm-total-row" style="font-weight:bold; background:#eee;">
+                    <td colspan="3">TOTAL</td>
+                    <td id="p-t-3" class="text-right">0.00</td><td id="p-t-4" class="text-right">0.00</td><td id="p-t-5" class="text-right">0.00</td><td id="p-t-6" class="text-right">0.00</td><td id="p-t-7" class="text-right">0.00</td><td id="p-t-8" class="text-right">0.00</td><td id="p-t-9" class="text-right">0.00</td><td id="p-t-10" class="text-right">0.00</td><td id="p-t-11" class="text-right">0.00</td><td id="p-t-12" class="text-right">0.00</td><td class="no-print">-</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="print-only" style="margin-top:15px; text-align:left; font-size: 16px;">Head Office Net: <span id="print-ho">0.00</span> | Fuel Net: <span id="print-fuel">0.00</span> | Rural Net: <span id="print-rural">0.00</span></div>
+        <button class="no-print" style="margin-top:10px;" onclick="addEmp('perm')">Add Employee</button>
+        <button class="print-btn no-print" onclick="printPage('permanent')"><i class="fas fa-print"></i> Print Payroll</button>
+        
+        <div class="computer-generated-note">This is a computer-generated document. No signature is required.</div>
+        <div class="sig-container"><div class="sig-box">Prepared by</div><div class="sig-box">Verified by</div><div class="sig-box">Accountant</div><div class="sig-box">General Manager</div></div>
+    </div>
+
+    <!-- TEMPORARY -->
+    <div id="temporary" class="section">
+        <div class="print-only">Alayadivembu M.P.C.S Ltd<br>Temporary Employees Payroll - <span class="d-date"></span></div>
+        <h3 style="color: #e67e22;" class="no-print">Temporary Employees</h3>
+        <table id="temp-table" class="temp-table">
+            <thead>
+                <tr><th>Name</th><th>Dept</th><th>Designation</th><th>Daily</th><th>Days</th><th>Gross</th><th>EPF 8%</th><th>EPF 12%</th><th>ETF 3%</th><th>Loan</th><th>Bond</th><th>Adv</th><th>Net</th><th class="no-print">Action</th></tr>
+            </thead>
+            <tbody>
+                <tr id="temp-total-row" style="font-weight:bold; background:#eee;">
+                    <td colspan="5">TOTAL</td>
+                    <td id="t-t-5" class="text-right">0.00</td><td id="t-t-6" class="text-right">0.00</td><td id="t-t-7" class="text-right">0.00</td><td id="t-t-8" class="text-right">0.00</td><td id="t-t-9" class="text-right">0.00</td><td id="t-t-10" class="text-right">0.00</td><td id="t-t-11" class="text-right">0.00</td><td id="t-t-12" class="text-right">0.00</td><td class="no-print">-</td>
+                </tr>
+            </tbody>
+        </table>
+        <button class="no-print" style="margin-top:10px;" onclick="addEmp('temp')">Add Employee</button>
+        <button class="print-btn no-print" onclick="printPage('temporary')"><i class="fas fa-print"></i> Print Payroll</button>
+        
+        <div class="computer-generated-note">This is a computer-generated document. No signature is required.</div>
+        <div class="sig-container"><div class="sig-box">Prepared by</div><div class="sig-box">Verified by</div><div class="sig-box">Accountant</div><div class="sig-box">General Manager</div></div>
+    </div>
+
+    <!-- REPORT SECTION -->
+    <div id="report" class="section">
+        <h2 style="color: #9b59b6;" class="no-print">Saved Monthly Reports (Cloud Database View)</h2>
+        <div id="report-container"></div>
+    </div>
+
+    <script>
+        (function() { if (prompt("Enter Password:") !== "1993") { alert("Access Denied!"); window.location.href = "about:blank"; } })();
+
+        // === FIREBASE CONFIGURATION (உங்களுடைய பிரத்யேக விவரங்கள் இணைக்கப்பட்டுள்ளன) ===
+        const firebaseConfig = {
+            apiKey: "AIzaSyBksD8QmrC-3ga4K8VNdINk3tKlsOkf62o",
+            authDomain: "alayadivembu-payroll.firebaseapp.com",
+            databaseURL: "https://alayadivembu-payroll-default-rtdb.firebaseio.com",
+            projectId: "alayadivembu-payroll",
+            storageBucket: "alayadivembu-payroll.firebasestorage.app",
+            messagingSenderId: "652079142549",
+            appId: "1:652079142549:web:bbc85686037c7788f2ed9c",
+            measurementId: "G-PZECJ2SPZ3"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        const empList = ["J.Jeyaranjanee", "T.Thumilan", "K.Kiruvaran", "R.Ravidradevan", "T.Chanjana", "T.Kethees", "T.Thiviyakanthan", "K.Piranithan", "S.Laksanth", "T.Yajasran"];
+        const deptList = ["Head Office", "Fuel Filling Station", "Rural Bank"];
+        const desigList = ["General Manager", "Management Assistant", "Watchmen", "Watchmen (Fuel Pumper)", "Cashier", "Management Officer", "Management Officer (Fuel Station Manager)", "Fuel Pumper", "Manager"];
+
+        window.onload = function() {
+            loadReportsFromCloud();
+        };
+
+        function addEmp(type) {
+            let n = prompt("Employee (1-10):\n" + empList.map((x,i)=>i+1+"."+x).join('\n')); if(!n) return;
+            let d = prompt("Dept (1-3):\n" + deptList.map((x,i)=>i+1+"."+x).join('\n'));
+            let ds = prompt("Designation (1-9):\n" + desigList.map((x,i)=>i+1+"."+x).join('\n'));
+            let table = document.getElementById(type === 'perm' ? 'perm-table' : 'temp-table');
+            let row = table.insertRow(table.rows.length - 1);
+            
+            row.innerHTML = type === 'perm' ? 
+                `<td class="text-left">${empList[n-1]}</td><td class="text-left">${deptList[d-1]}</td><td class="text-left">${desigList[ds-1]}</td><td class="text-right">0</td><td class="text-right">0</td><td class="text-right">0</td><td class="text-right">0</td><td class="text-right">0</td><td class="text-right">0</td><td class="text-right">0</td><td class="text-right">0</td><td class="text-right">0</td><td class="text-right">0</td><td class="no-print"><button class="action-btn edit-btn" onclick="editRow(this,'perm')">Edit</button><button class="action-btn del-btn" onclick="deleteRow(this,'perm')">Del</button></td>` :
+                `<td class="text-left">${empList[n-1]}</td><td class="text-left">${deptList[d-1]}</td><td class="text-left">${desigList[ds-1]}</td><td class="text-right">0</td><td>0</td><td class="text-right">0</td><td class="text-right">0</td><td class="text-right">0</td><td class="text-right">0</td><td class="text-right">0</td><td class="text-right">0</td><td class="text-right">0</td><td class="text-right">0</td><td class="no-print"><button class="action-btn edit-btn" onclick="editRow(this,'temp')">Edit</button><button class="action-btn del-btn" onclick="deleteRow(this,'temp')">Del</button></td>`;
+            
+            editRow(row.cells[row.cells.length-1].children[0], type);
+        }
+
+        function editRow(btn, type) {
+            let row = btn.closest('tr');
+            if (type === 'perm') {
+                let b = parseFloat(prompt("Basic Salary:", row.cells[3].innerText)) || 0;
+                let inc = parseFloat(prompt("Annual Increment:", row.cells[4].innerText)) || 0;
+                let l = parseFloat(prompt("Loan:", row.cells[9].innerText)) || 0;
+                let bond = parseFloat(prompt("Bond:", row.cells[10].innerText)) || 0;
+                let adv = parseFloat(prompt("Advance:", row.cells[11].innerText)) || 0;
+                let g = b + inc, e8 = g*0.08, e12 = g*0.12, et3 = g*0.03, net = g - e8 - l - bond - adv;
+                let vals = [b, inc, g, e8, e12, et3, l, bond, adv, net];
+                for(let i=0; i<vals.length; i++) row.cells[i+3].innerText = vals[i].toFixed(2);
+            } else {
+                let day = parseFloat(prompt("Daily Salary:", row.cells[3].innerText)) || 0;
+                let days = parseInt(prompt("Days Worked (Full Number):", row.cells[4].innerText)) || 0;
+                let l = parseFloat(prompt("Loan:", row.cells[9].innerText)) || 0;
+                let bond = parseFloat(prompt("Bond:", row.cells[10].innerText)) || 0;
+                let adv = parseFloat(prompt("Advance:", row.cells[11].innerText)) || 0;
+                let g = day * days, e8 = g*0.08, e12 = g*0.12, et3 = g*0.03, net = g - e8 - l - bond - adv;
+                row.cells[3].innerText = day.toFixed(2); row.cells[4].innerText = days;
+                let vals = [g, e8, e12, et3, l, bond, adv, net];
+                for(let i=0; i<vals.length; i++) row.cells[i+5].innerText = vals[i].toFixed(2);
+            }
+            calcAll();
+        }
+
+        function deleteRow(btn, type) { if(confirm("Delete this record?")) { btn.closest('tr').remove(); calcAll(); } }
+
+        function calcAll() {
+            let pT = Array(10).fill(0), tT = Array(8).fill(0), dash = {e8:0, e12:0, et3:0, ho:0, fuel:0, rural:0};
+
+            let pRows = document.querySelectorAll('#perm-table tbody tr:not(#perm-total-row)');
+            pRows.forEach(r => {
+                for(let i=0; i<10; i++) pT[i] += parseFloat(r.cells[i+3].innerText);
+                let net = parseFloat(r.cells[12].innerText), dept = r.cells[1].innerText;
+                dash.e8 += parseFloat(r.cells[6].innerText); dash.e12 += parseFloat(r.cells[7].innerText); dash.et3 += parseFloat(r.cells[8].innerText);
+                if(dept.includes("Head")) dash.ho += net; else if(dept.includes("Fuel")) dash.fuel += net; else dash.rural += net;
+            });
+            for(let i=0; i<10; i++) document.getElementById('p-t-'+(i+3)).innerText = pT[i].toFixed(2);
+
+            let tRows = document.querySelectorAll('#temp-table tbody tr:not(#temp-total-row)');
+            tRows.forEach(r => {
+                for(let i=0; i<8; i++) tT[i] += parseFloat(r.cells[i+5].innerText);
+                let net = parseFloat(r.cells[12].innerText), dept = r.cells[1].innerText;
+                dash.e8 += parseFloat(r.cells[6].innerText); dash.e12 += parseFloat(r.cells[7].innerText); dash.et3 += parseFloat(r.cells[8].innerText);
+                if(dept.includes("Head")) dash.ho += net; else if(dept.includes("Fuel")) dash.fuel += net; else dash.rural += net;
+            });
+            for(let i=0; i<8; i++) document.getElementById('t-t-'+(i+5)).innerText = tT[i].toFixed(2);
+
+            document.getElementById('dash-epf8').innerText = dash.e8.toFixed(2);
+            document.getElementById('dash-epf12').innerText = dash.e12.toFixed(2);
+            document.getElementById('dash-epf20').innerText = (dash.e8 + dash.e12).toFixed(2);
+            document.getElementById('dash-etf3').innerText = dash.et3.toFixed(2);
+            document.getElementById('dash-ho').innerText = document.getElementById('print-ho').innerText = dash.ho.toFixed(2);
+            document.getElementById('dash-fuel').innerText = document.getElementById('print-fuel').innerText = dash.fuel.toFixed(2);
+            document.getElementById('dash-rural').innerText = document.getElementById('print-rural').innerText = dash.rural.toFixed(2);
+        }
+
+        // === SAVE TO CLOUD ===
+        function saveToReport() {
+            let month = document.getElementById('m-val').value;
+            let year = document.getElementById('y-val').value.trim();
+            if(!month) { alert("Please SELECT a Month!"); return; }
+            if(!year) { alert("Please enter the Year!"); return; }
+            
+            let reportKey = month + "_" + year;
+
+            let pTableClone = document.getElementById('perm-table').cloneNode(true);
+            let tTableClone = document.getElementById('temp-table').cloneNode(true);
+            pTableClone.querySelectorAll('.no-print').forEach(el => el.remove());
+            tTableClone.querySelectorAll('.no-print').forEach(el => el.remove());
+
+            let data = {
+                date: month + " " + year,
+                dash: document.querySelector('.dash-table').outerHTML,
+                perm: pTableClone.outerHTML,
+                temp: tTableClone.outerHTML
+            };
+
+            database.ref('payroll_reports/' + reportKey).set(data, function(error) {
+                if (error) {
+                    alert("Data could not be saved to cloud! " + error);
+                } else {
+                    alert("Data Saved SECURELY to Cloud Database under: " + month + " " + year);
+                }
+            });
+        }
+
+        // === LOAD FROM CLOUD ===
+        function loadReportsFromCloud() {
+            let container = document.getElementById('report-container');
+            container.innerHTML = "<p class='loading-text no-print'>Connecting to Alayadivembu Cloud Database...</p>";
+
+            database.ref('payroll_reports').on('value', function(snapshot) {
+                container.innerHTML = "";
+                let reports = snapshot.val();
+                
+                if(!reports || Object.keys(reports).length === 0) {
+                    container.innerHTML = "<p class='no-print' style='text-align:center; color:#666;'>No Saved Reports Found on Cloud.</p>";
+                    return;
+                }
+
+                for(let key in reports) {
+                    let item = reports[key];
+                    let folderDiv = document.createElement('div');
+                    folderDiv.className = "folder-container";
+                    folderDiv.id = "folder-" + key;
+                    
+                    folderDiv.innerHTML = `
+                        <div class="folder-title no-print">
+                            <span><i class="fas fa-cloud"></i> CLOUD FOLDER: ${item.date}</span>
+                            <div>
+                                <button class="action-btn view-btn" onclick="showFolderView('${key}')"><i class="fas fa-eye"></i> View</button>
+                                <button class="action-btn del-btn" onclick="deleteCloudReport('${key}')"><i class="fas fa-trash"></i> Delete</button>
+                            </div>
+                        </div>
+                        
+                        <div class="report-page-block" id="block-dash-${key}">
+                            <div class="print-only">Alayadivembu M.P.C.S Ltd<br>Dashboard Summary - ${item.date}</div>
+                            <h3 style="color:#3498db;" class="no-print">Dashboard Summary</h3>
+                            ${item.dash}
+                            <button class="inner-print-btn no-print" onclick="printSingleBlock('${key}', 'block-dash-${key}')"><i class="fas fa-print"></i> Print Dashboard</button>
+                            <div class="computer-generated-note">This is a computer-generated document. No signature is required.</div>
+                            <div class="sig-container"><div class="sig-box">Prepared by</div><div class="sig-box">Verified by</div><div class="sig-box">Accountant</div><div class="sig-box">General Manager</div></div>
+                        </div>
+                        
+                        <div class="report-page-block" id="block-perm-${key}">
+                            <div class="print-only">Alayadivembu M.P.C.S Ltd<br>Permanent Employees Payroll - ${item.date}</div>
+                            <h3 style="color:#27ae60;" class="no-print">Permanent Payroll</h3>
+                            ${item.perm}
+                            <button class="inner-print-btn no-print" onclick="printSingleBlock('${key}', 'block-perm-${key}')"><i class="fas fa-print"></i> Print Permanent Payroll</button>
+                            <div class="computer-generated-note">This is a computer-generated document. No signature is required.</div>
+                            <div class="sig-container"><div class="sig-box">Prepared by</div><div class="sig-box">Verified by</div><div class="sig-box">Accountant</div><div class="sig-box">General Manager</div></div>
+                        </div>
+                        
+                        <div class="report-page-block" id="block-temp-${key}">
+                            <div class="print-only">Alayadivembu M.P.C.S Ltd<br>Temporary Employees Payroll - ${item.date}</div>
+                            <h3 style="color:#e67e22;" class="no-print">Temporary Payroll</h3>
+                            ${item.temp}
+                            <button class="inner-print-btn no-print" onclick="printSingleBlock('${key}', 'block-temp-${key}')"><i class="fas fa-print"></i> Print Temporary Payroll</button>
+                            <div class="computer-generated-note">This is a computer-generated document. No signature is required.</div>
+                            <div class="sig-container"><div class="sig-box">Prepared by</div><div class="sig-box">Verified by</div><div class="sig-box">Accountant</div><div class="sig-box">General Manager</div></div>
+                        </div>
+                    `;
+                    container.appendChild(folderDiv);
+                }
+            });
+        }
+
+        // === DELETE FROM CLOUD ===
+        function deleteCloudReport(key) {
+            if(confirm("Are you sure you want to permanently delete this Month's Folder from Cloud Database?")) {
+                database.ref('payroll_reports/' + key).remove()
+                .then(() => { alert("Folder deleted successfully from cloud."); })
+                .catch((error) => { alert("Delete failed: " + error); });
+            }
+        }
+
+        function printSingleBlock(key, blockId) {
+            let allBlocks = document.querySelectorAll('.report-page-block');
+            let targetBlock = document.getElementById(blockId);
+            let reportSection = document.getElementById('report');
+            let folderContainer = document.getElementById('folder-' + key);
+
+            allBlocks.forEach(b => b.classList.add('print-force-hide'));
+            
+            targetBlock.classList.remove('print-force-hide');
+            targetBlock.classList.add('print-force-show');
+            reportSection.classList.add('print-force-show');
+            folderContainer.add('print-force-show');
+
+            window.print();
+
+            allBlocks.forEach(b => {
+                b.classList.remove('print-force-hide');
+                b.classList.remove('print-force-show');
+            });
+            reportSection.classList.remove('print-force-show');
+            folderContainer.classList.remove('print-force-show');
+        }
+
+        function showFolderView(key) {
+            let target = document.getElementById('folder-' + key);
+            target.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function printPage(sectionId) {
+            let selectedMonth = document.getElementById('m-val').value;
+            let currentMonthDisplay = selectedMonth ? selectedMonth : "No Month Selected";
+            
+            document.querySelectorAll('.d-date').forEach(el => {
+                el.innerText = currentMonthDisplay + " " + document.getElementById('y-val').value;
+            });
+            
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            window.print();
+            document.getElementById(sectionId).classList.add('active');
+        }
+        
+        function show(id) { 
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active')); 
+            document.getElementById(id).classList.add('active'); 
+        }
+    </script>
+</body>
+</html>
